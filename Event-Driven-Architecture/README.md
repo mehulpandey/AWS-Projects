@@ -22,169 +22,160 @@ To kick off this demo, we will create a custom EventBridge event bus (Orders).
 2. Select Event buses under the Buses section in the left pane. Click Create event bus.
 3. Name the event bus Orders and leave all other options unchanged. Click Create.
 
-
-Setting up Amazon CloudWatch as the target
-
+### Setting up Amazon CloudWatch as the target
 
 In this section, we will configure an EventBridge rule (OrderDevRule) to send all events passed to the bus to a CloudWatch Logs log group (/aws/events/orders). This is a useful monitoring tool for troubleshooting rules matching logic and getting rapid feedback for development work.
 
-
-Select Rules from the left pane.
-Select the Orders event bus from the Event bus drop-down and select Create rule.
-Input the following parameters in the Define rule detail page. Once done, click Next.
-Name: OrdersDevRule
-Description: Catchall rule for development
-Rule type: Rule with an event pattern
-Input the following parameters in the Build event pattern page. Once done, click Next.
-Event source: Other
-Event pattern: 
+1. Select Rules from the left pane.
+2. Select the Orders event bus from the Event bus drop-down and select Create rule.
+3. Input the following parameters in the Define rule detail page. Once done, click Next.
+    - Name: OrdersDevRule
+    - Description: Catchall rule for development
+    - Rule type: Rule with an event pattern
+4. Input the following parameters in the Build event pattern page. Once done, click Next.
+    - Event source: Other
+    - Event pattern:
+```
 {
-  "source": ["com.aws.orders"]
+    "source": ["com.aws.orders"]
 }
-Input the following parameters in the Select target(s) page. Once done, skip through the configure tags section and click Create Rule.
-Target types: AWS service
-Select a target: CloudWatch log group
-Log Group: /aws/events/orders
+```
+5. Input the following parameters in the Select target(s) page. Once done, skip through the configure tags section and click Create Rule.
+    - Target types: AWS service
+    - Select a target: CloudWatch log group
+    - Log Group: /aws/events/orders
 
-
-Testing the Dev rule
-
+### Testing the Dev rule
 
 In this section, we will send test events to the event bus to verify that it gets successfully delivered to CloudWatch Logs.
 
-
-Select Event buses from the left pane. Select Send events.
-Input the following parameters under Event entry 1. Once done, click Send.
-Event bus: Orders
-Source: com.aws.orders
-Detail Type: Order Notification
-Event Detail:
+1. Select Event buses from the left pane. Select Send events.
+2. Input the following parameters under Event entry 1. Once done, click Send.
+    - Event bus: Orders
+    - Source: com.aws.orders
+    - Detail Type: Order Notification
+    - Event Detail:
+```
 {
-  "category": "lab-supplies",
-  "value": 415,
-  "location": "eu-west"
+    "category": "lab-supplies",
+    "value": 415,
+    "location": "eu-west"
 }
-Open the AWS Management Console for CloudWatch. 
-Choose Log groups in the left pane and select the /aws/events/orders log group.
-Select the Log stream.
-Verify that you received the event by toggling the log event. Screenshot
+```
+3. Open the AWS Management Console for CloudWatch. 
+4. Choose Log groups in the left pane and select the /aws/events/orders log group.
+5. Select the Log stream.
+6. Verify that you received the event by toggling the log event.
 
-
-Archive and Replay
-
+## Archive and Replay
 
 In event-driven architectures, accessing past events is often useful but has typically required complex, manual setups. EventBridge’s archive and replay feature simplifies this by recording events from any event bus. You can archive all events or filter them using rule-based patterns.
 
-
 Replaying events helps with:
+- Bug fixes: Test code changes against real historical events
+- Feature testing: Evaluate new features under realistic load using past data
+- Environment setup: Hydrate dev/test environments with real event history to mimic production
 
+In this section, we will create event archives for the Orders custom EventBus to match an event with a `com.aws.orders` source. We will then replay historical order events to an SQS queue that will feed into a separate part of the product architecture.
 
-Bug fixes: Test code changes against real historical events
-Feature testing: Evaluate new features under realistic load using past data
-Environment setup: Hydrate dev/test environments with real event history to mimic production
+### Creating an event archive
 
-
-In this section, we will create event archives for the Orders custom EventBus to match an event with a com.aws.orders source. We will then replay historical order events to an SQS queue that will feed into a separate part of the product architecture.
-
-
-Creating an event archive
-
-
-Navigate to the EventBridge console. Select Archives from the left pane. Select Create archive.
-On the archive details page, enter the following parameters. Once done, click Next.
-Name: OrderEventArchive
-Description (optional): Archive for Orders
-Source: Orders
-Custom Retention Period: 30 days
-In the Filter events page, you can choose to archive a subset of events by providing an event pattern. Choose Filtering events by event pattern matching and select Custom pattern (JSON editor). Input the following Event pattern to choose only events from the Orders EventBus.
+1. Navigate to the EventBridge console. Select Archives from the left pane. Select Create archive.
+2. On the archive details page, enter the following parameters. Once done, click Next.
+    - Name: OrderEventArchive
+    - Description (optional): Archive for Orders
+    - Source: Orders
+    - Custom Retention Period: 30 days
+3. In the Filter events page, you can choose to archive a subset of events by providing an event pattern. Choose Filtering events by event pattern matching and select Custom pattern (JSON editor). Input the following Event pattern to choose only events from the Orders EventBus.
+```
 {
     "source": [
         "com.aws.orders"
     ]
 }
-Choose Create archive. You can view the new archive waiting to receive events in the Archives page.
-
+```
+4. Choose Create archive. You can view the new archive waiting to receive events in the Archives page.
 
 Now that we have created the archive, we will validate that events are successfully being sent to the archive.
 
-
-Select the OrderEventArchive archive created in the previous section. See the Event count and Size in bytes fields, which should both be 0 at this point because no events have been archived yet. 
-From the Event buses section in the left pane, select Send events. Input the following parameters and select Send once completed.
-Event bus: Orders
-Source: com.aws.orders
-Detail type: Order Notification
-Event detail:
+1. Select the OrderEventArchive archive created in the previous section. See the Event count and Size in bytes fields, which should both be 0 at this point because no events have been archived yet. 
+2. From the Event buses section in the left pane, select Send events. Input the following parameters and select Send once completed.
+    - Event bus: Orders
+    - Source: com.aws.orders
+    - Detail type: Order Notification
+    - Event detail:
+```
 {
     "category": "office-supplies",
     "value": 1200,
     "location": "eu-west"
 }
-Return to the OrderEventArchive details page and verify that the Event count and Size in bytes are non-zero.
+```
+3. Return to the OrderEventArchive details page and verify that the Event count and Size in bytes are non-zero.
 
-
-Replay events from the archive
-
+### Replay events from the archive
 
 In this section, we will create an EventBridge rule to target a pre-built SQS queue called OrdersReplayQueue and replay events from the archive onto this rule.
 
-
-Follow the steps in the first section to add a rule to Orders with the name OrdersReplayRule. Give it the following event pattern to match order events where the replay-name attribute is present. 
+1. Follow the steps in the first section to add a rule to Orders with the name OrdersReplayRule. Give it the following event pattern to match order events where the replay-name attribute is present.
+```
 {
   "replay-name": [{
     "exists": true
   }],
   "source": ["com.aws.orders"]
 }
-Ensure Orders is selected from the Select event bus panel. Target the OrdersReplayQueue SQS queue.
-
+```
+2. Ensure Orders is selected from the Select event bus panel. Target the OrdersReplayQueue SQS queue.
 
 Now that the new rule is created, we will replay events from the archive onto this rule.
 
-
-Navigate to the EventBridge console. Select Replays from the left pane and select Start new replay. 
-On the next page, input the following and select Start replay when complete.
-Name: OrdersReplay
-Description (optional): Replay archived orders
-Source: OrderEventArchive
-Specify rule(s): Select Specify rule and then select OrdersReplayRule
-Replay time frame: Specify the Date, Time, and Time Zone for both the start and end times. This will replay only the events that occurred in this window.
-Monitor the Replays page until the status of the replay is Completed.
-
+1. Navigate to the EventBridge console. Select Replays from the left pane and select Start new replay. 
+2. On the next page, input the following and select Start replay when complete.
+    - Name: OrdersReplay
+    - Description (optional): Replay archived orders
+    - Source: OrderEventArchive
+    - Specify rule(s): Select Specify rule and then select OrdersReplayRule
+    - Replay time frame: Specify the Date, Time, and Time Zone for both the start and end times. This will replay only the events that occurred in this window.
+3. Monitor the Replays page until the status of the replay is Completed.
 
 Finally, we will validate that the events are visible from the SQS queue.
 
+1. Navigate to the SQS console and select OrdersReplayQueue. 
+2. Click Send and receive messages. 
+3. In the Receive messages panel, click Poll for messages. The replayed archive order events should appear in the messages section after polling is complete.
 
-Navigate to the SQS console and select OrdersReplayQueue. 
-Click Send and receive messages. 
-In the Receive messages panel, click Poll for messages. The replayed archive order events should appear in the messages section after polling is complete.
-
-Key Takeaways
+# Key Takeaways
 
 Through this event-driven architecture, we achieved the following:
 
-Decoupled communication: EventBridge enables services to interact without knowing about each other, improving flexibility and allowing distinct teams to work on distinct components of an application independently.
-Real-time observability: Logging all events to CloudWatch Logs gives immediate visibility into system behavior, aiding in debugging and monitoring.
-Event replay for recovery/testing: Archiving and replaying events into SQS allows you to simulate past scenarios, recover from failures, or hydrate test environments.
-Scalability and cost efficiency: Using serverless and managed services like EventBridge, CloudWatch, and SQS ensures the architecture can scale with demand and remain cost-efficient. The decoupling of services also allows each service to scale independently, so any one service doesn’t become a bottleneck for the other.
-AWS Well-Architected Framework
+- **Decoupled communication:** EventBridge enables services to interact without knowing about each other, improving flexibility and allowing distinct teams to work on distinct components of an application independently.
+- **Real-time observability:** Logging all events to CloudWatch Logs gives immediate visibility into system behavior, aiding in debugging and monitoring.
+- **Event replay for recovery/testing:** Archiving and replaying events into SQS allows you to simulate past scenarios, recover from failures, or hydrate test environments.
+- **Scalability and cost efficiency:** Using serverless and managed services like EventBridge, CloudWatch, and SQS ensures the architecture can scale with demand and remain cost-efficient. The decoupling of services also allows each service to scale independently, so any one service doesn’t become a bottleneck for the other.
+
+## AWS Well-Architected Framework
+
 For every architecture I build, I like to assess it against the AWS Well-Architected Framework to make sure I’m covering all my bases. This is a set of best practices and guidelines designed by AWS to help you build secure, high-performing, resilient, and efficient cloud architectures. In this section, I’ve looked at each of the main pillars of the Well-Architected Framework and used them to evaluate the architectures created in this demo:
 
-Operational Excellence
-Centralized logging with CloudWatch improves observability and operational insights
-Replay capability supports post-incident analysis and testing
-Reliability
-SQS provides durable storage and retry logic for event-driven workflows
-Event replay ensures events aren’t lost and can be processed again if needed
-Performance Efficiency
-Serverless components auto-scale and eliminate provisioning overhead
-Asynchronous processing (via SQS) reduces bottlenecks and improves throughput
-Cost Optimization
-Pay-as-you-go pricing for EventBridge, CloudWatch Logs, and SQS avoids overprovisioning
-Replay lets you test features or environments without additional infrastructure
-Security
-IAM policies control access to EventBridge, SQS, and CloudWatch resources
-Fine-grained event filtering helps ensure only relevant data reaches each target
-Challenges, Optimizations, and Applications
+- **Operational Excellence**
+    - Centralized logging with CloudWatch improves observability and operational insights
+    - Replay capability supports post-incident analysis and testing
+- **Reliability**
+    - SQS provides durable storage and retry logic for event-driven workflows
+    - Event replay ensures events aren’t lost and can be processed again if needed
+- **Performance Efficiency**
+    - Serverless components auto-scale and eliminate provisioning overhead
+    - Asynchronous processing (via SQS) reduces bottlenecks and improves throughput
+- **Cost Optimization**
+    - Pay-as-you-go pricing for EventBridge, CloudWatch Logs, and SQS avoids overprovisioning
+    - Replay lets you test features or environments without additional infrastructure
+- **Security**
+    - IAM policies control access to EventBridge, SQS, and CloudWatch resources
+    - Fine-grained event filtering helps ensure only relevant data reaches each target
+
+## Challenges, Optimizations, and Applications
+
 While event-driven architectures offer flexibility and scalability, they also introduce new complexities. Here are some key challenges to consider when implementing this kind of architecture with AWS EventBridge.
 Event Order & Duplication: Events are not guaranteed to be delivered in order or only once. Design consumers to be stateless and idempotent.
 Debugging Across Services: Tracing events across multiple decoupled services can be difficult. Consider using AWS X-Ray or adding correlation IDs to events.
