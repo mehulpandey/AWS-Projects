@@ -174,7 +174,7 @@ For every architecture I build, I like to assess it against the AWS Well-Archite
     - IAM policies control access to EventBridge, SQS, and CloudWatch resources
     - Fine-grained event filtering helps ensure only relevant data reaches each target
 
-## Challenges, Optimizations, and Applications
+## Challenges
 
 While event-driven architectures offer flexibility and scalability, they also introduce new complexities. Here are some key challenges to consider when implementing this kind of architecture with AWS EventBridge.
 
@@ -183,12 +183,16 @@ While event-driven architectures offer flexibility and scalability, they also in
 - **Replay Scope Control:** Replaying archived events to a new target may inadvertently trigger unwanted logic if not filtered or scoped correctly.
 - **Latency Trade-offs:** Using SQS introduces some delay; it’s great for durability but not ideal for ultra-low-latency needs.
 
+## Optimizations
+
 Despite the challenges, as with any architecture, it can be optimized. Incorporate the following enhancements to your architecture to reduce costs and improve performance and reliability even further.
 
 - **Event Filtering at Source:** Use EventBridge rules to filter only necessary events before routing to targets, reducing noise and cost (especially in CloudWatch Logs or SQS).
 - **Use Dead-Letter Queues (DLQs):** For the SQS target, configure a DLQ to capture failed messages for reprocessing or debugging.
 - **Batch Processing in SQS:** Optimize Lambda or downstream services consuming from SQS by using batch reads to reduce invocation costs.
 - **CloudWatch Log Retention:** Set a log retention policy to avoid accumulating unnecessary costs for archived logs.
+
+## Applications
 
 A fully optimized event-driven architecture isn’t just technically elegant - it can unlock real value across a wide range of business use cases. Here are some practical ways this architecture can be applied in real-world scenarios.
 
